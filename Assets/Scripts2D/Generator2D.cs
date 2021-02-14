@@ -1,4 +1,30 @@
-﻿using System.Collections;
+﻿/* Adapted from https://github.com/vazgriz/DungeonGenerator
+
+Copyright (c) 2015-2019 Simon Zeni (simonzeni@gmail.com)
+
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.*/
+
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Random = System.Random;
@@ -11,7 +37,15 @@ public class Generator2D : MonoBehaviour {
         Hallway
     }
 
-    class Room {
+    enum RoomType {
+        Empty,
+        Entrance,
+        Exit,
+        Battle,
+        Decorative
+    }
+
+    /*class Room {
         public RectInt bounds;
 
         public Room(Vector2Int location, Vector2Int size) {
@@ -22,14 +56,44 @@ public class Generator2D : MonoBehaviour {
             return !((a.bounds.position.x >= (b.bounds.position.x + b.bounds.size.x)) || ((a.bounds.position.x + a.bounds.size.x) <= b.bounds.position.x)
                 || (a.bounds.position.y >= (b.bounds.position.y + b.bounds.size.y)) || ((a.bounds.position.y + a.bounds.size.y) <= b.bounds.position.y));
         }
+    }*/
+
+    class Room
+    {
+        public RectInt bounds;
+        public RoomType Type;
+
+        public Room(Vector2Int location, Vector2Int size)
+        {
+            bounds = new RectInt(location, size);
+            Type = RoomType.Empty;
+        }
+
+        public Room(Vector2Int location, Vector2Int size, RoomType type)
+        {
+            bounds = new RectInt(location, size);
+            Type = type;
+        }
+
+        public static bool Intersect(Room a, Room b)
+        {
+            return !((a.bounds.position.x >= (b.bounds.position.x + b.bounds.size.x)) || ((a.bounds.position.x + a.bounds.size.x) <= b.bounds.position.x)
+                || (a.bounds.position.y >= (b.bounds.position.y + b.bounds.size.y)) || ((a.bounds.position.y + a.bounds.size.y) <= b.bounds.position.y));
+        }
     }
 
     [SerializeField]
     Vector2Int size;
     [SerializeField]
+    int maxRoomNum; //No less than 2
+    [SerializeField]
+    float battleRoomRatio; //From (0.0f to 1.0f)
+    [SerializeField]
     int roomCount;
     [SerializeField]
-    Vector2Int roomMaxSize;
+    Vector2Int roomMinSize; //No less than (1, 1)
+    [SerializeField]
+    Vector2Int roomMaxSize; //No less than (1, 1)
     [SerializeField]
     GameObject cubePrefab;
     [SerializeField]
@@ -48,14 +112,72 @@ public class Generator2D : MonoBehaviour {
     }
 
     void Generate() {
-        random = new Random(0);
+        random = new Random(0); //If empty - all random, if number - seed
         grid = new Grid2D<CellType>(size, Vector2Int.zero);
         rooms = new List<Room>();
 
+        GenerateRooms();
         PlaceRooms();
         Triangulate();
         CreateHallways();
         PathfindHallways();
+        //PlaceStructure(); //Размещает стены, пол, потолок, двери
+        //PlaceGameObjects(); //Размещает объекты игрового процесса
+        //PlaceObstacles(); //Размещает декоративные объекты
+        //PlaceLighting(); //Размещает освещение
+    }
+
+    /* void GenerateRooms(int levelNum, PrevLevelInfo prevLevelInfo) {
+        levelNum - влияет на мин/макс количество комнат,
+                   количество комнат влияет на макс размер поля
+                   количество комнат влияет на мин/макс размеры комнат
+        prevLevelInfo - влияет на скорость роста сложности с возрастанием 
+                        номера уровня (сложность комнат, количество наград, сила врагов)
+    }*/
+    void GenerateRooms() {
+        int[] roomTypeNum = new int[Enum.GetNames(typeof(RoomType)).Length - 1]; // Don't need "Empty" rooms
+        roomTypeNum[0] = 1; //entranceRoomNumber
+        roomTypeNum[1] = 1; //exitRoomNumber
+        roomTypeNum[2] = (int)((maxRoomNum - roomTypeNum[0] - roomTypeNum[1]) * battleRoomRatio); //battleRoomNumber
+        roomTypeNum[3] = maxRoomNum - roomTypeNum[0] - roomTypeNum[1] - roomTypeNum[2]; //decorativeRoomNumber
+
+        Debug.Log(Enum.GetNames(typeof(RoomType)).Length);
+        Debug.Log(roomTypeNum[0]);
+        Debug.Log(roomTypeNum[1]);
+        Debug.Log(roomTypeNum[2]);
+        Debug.Log(roomTypeNum[3]);
+
+       for (int i = 0; i < roomTypeNum.Length; i++) {
+            RoomType type = RoomType.Empty;
+
+            switch (i) {
+                case 0:
+                    type = RoomType.Entrance;
+                    break;
+                case 1:
+                    type = RoomType.Exit;
+                    break;
+                case 2:
+                    type = RoomType.Battle;
+                    break;
+                case 3:
+                    type = RoomType.Decorative;
+                    break;
+                default:
+                    type = RoomType.Empty;
+                    break;
+            }
+
+            Vector2Int location = new Vector2Int(0, 0);
+
+            Vector2Int roomSize = new Vector2Int(
+                random.Next(roomMinSize.x, roomMaxSize.x),
+                random.Next(roomMinSize.y, roomMaxSize.y)
+            );
+
+            Room newRoom = new Room(location, roomSize, type);
+            rooms.Add(newRoom);
+        }
     }
 
     void PlaceRooms() {

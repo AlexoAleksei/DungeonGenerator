@@ -90,7 +90,7 @@ public class Generator2D : MonoBehaviour
     [SerializeField]
     Vector2Int size;
     [SerializeField]
-    int maxRoomNum; //No less than 2
+    int maxRoomNum; //No less than 3
     [SerializeField]
     float battleRoomRatio; //From (0.0f to 1.0f), 0.4 recommended
     [SerializeField]
@@ -105,6 +105,12 @@ public class Generator2D : MonoBehaviour
     Material redMaterial;
     [SerializeField]
     Material blueMaterial;
+    [SerializeField]
+    Material yellowMaterial;
+    [SerializeField]
+    Material greenMaterial;
+    [SerializeField]
+    Material violetMaterial;
 
     Random random;
     Grid2D<CellType> grid;
@@ -120,7 +126,7 @@ public class Generator2D : MonoBehaviour
 
     void Generate()
     {
-        random = new Random(0); //If empty - all random, if number - seed
+        random = new Random(); //If empty - all random, if number - seed
         grid = new Grid2D<CellType>(maxSize, Vector2Int.zero);
         rooms = new List<Room>();
 
@@ -198,15 +204,44 @@ public class Generator2D : MonoBehaviour
     {
         List<Room> roomsCopy = new List<Room>(); //Creating a reserve copy
         roomsCopy.AddRange(rooms);
-        
+        Vector2Int entrance = new Vector2Int(0, 0);
+
         for (int i = 0; i < rooms.Count; i++)
         {
             for (int j = 0; j < roomCount; j++)
             {
+                bool add = true;
+
                 rooms[i].bounds.position = new Vector2Int(
                     random.Next(0, size.x),
                     random.Next(0, size.y)
                 );
+                if (rooms[i].Type == RoomType.Entrance)
+                {
+                    entrance = new Vector2Int(rooms[i].bounds.position.x, rooms[i].bounds.position.y);
+                }
+                else if (rooms[i].Type == RoomType.Exit)
+                {
+                    int range;
+                    if (size.x >= size.y)
+                    {
+                        range = size.y / 2;
+                    }
+                    else
+                    {
+                        range = size.x / 2;
+                    }
+                    if (Vector2Int.Distance(rooms[i].bounds.position, entrance) <= range)
+                    {
+                        Debug.Log("Entrance and Exit are too close!");
+                        //Debug.Log(Vector2Int.Distance(rooms[i].bounds.position, entrance));
+                        //Debug.Log(range);
+                        add = false;
+                    }
+                    Debug.Log("Range is fine!");
+                    //Debug.Log(Vector2Int.Distance(rooms[i].bounds.position, entrance));
+                    //Debug.Log(range);
+                }
 
                 switch (rooms[i].Type)
                 {
@@ -234,8 +269,7 @@ public class Generator2D : MonoBehaviour
                 /*Debug.Log(i);
                 Debug.Log(rooms[i].bounds.position);
                 Debug.Log(rooms[i].bounds.size);*/
-
-                bool add = true;
+               
                 Room buffer = new Room(
                     rooms[i].bounds.position + new Vector2Int(-1, -1),
                     rooms[i].bounds.size + new Vector2Int(2, 2)
@@ -289,7 +323,7 @@ public class Generator2D : MonoBehaviour
 
         foreach (var room in rooms)
         {
-            PlaceRoom(room.bounds.position, room.bounds.size); //Models
+            PlaceRoom(room.bounds.position, room.bounds.size, room.Type); //Models
 
             foreach (var pos in room.bounds.allPositionsWithin) //Grid positions
             {
@@ -458,9 +492,26 @@ public class Generator2D : MonoBehaviour
         go.GetComponent<MeshRenderer>().material = material;
     }
 
-    void PlaceRoom(Vector2Int location, Vector2Int size)
+    void PlaceRoom(Vector2Int location, Vector2Int size, RoomType type)
     {
-        PlaceCube(location, size, redMaterial);
+        switch (type)
+        {
+            case RoomType.Entrance:
+                PlaceCube(location, size, greenMaterial);
+                break;
+            case RoomType.Exit:
+                PlaceCube(location, size, violetMaterial);
+                break;
+            case RoomType.Battle:
+                PlaceCube(location, size, redMaterial);
+                break;
+            case RoomType.Decorative:
+                PlaceCube(location, size, yellowMaterial);
+                break;
+            default:
+                PlaceCube(location, size, blueMaterial);
+                break;
+        }        
     }
 
     void PlaceHallway(Vector2Int location)

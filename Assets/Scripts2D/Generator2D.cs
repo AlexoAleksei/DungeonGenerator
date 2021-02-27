@@ -48,6 +48,7 @@ public class Generator2D : MonoBehaviour
         Decorative
     }
 
+
     /*class Room {
         public RectInt bounds;
 
@@ -61,27 +62,56 @@ public class Generator2D : MonoBehaviour
         }
     }*/
 
+    class Door
+    {
+        public Vector2Int location;
+        public Vector2Int side; //left, up, right, down.
+
+        public Door(Vector2Int Location, Vector2Int Side)
+        {
+            location = Location;
+            side = Side;
+        }
+    }
+    
     class Room
     {
         public RectInt bounds;
         public RoomType Type;
+        public List<Door> doors;
 
         public Room(Vector2Int location, Vector2Int size)
         {
             bounds = new RectInt(location, size);
             Type = RoomType.Empty;
+            doors = new List<Door>();
         }
 
         public Room(Vector2Int location, Vector2Int size, RoomType type)
         {
             bounds = new RectInt(location, size);
             Type = type;
+            doors = new List<Door>();
         }
 
         public static bool Intersect(Room a, Room b)
         {
             return !((a.bounds.position.x >= (b.bounds.position.x + b.bounds.size.x)) || ((a.bounds.position.x + a.bounds.size.x) <= b.bounds.position.x)
                 || (a.bounds.position.y >= (b.bounds.position.y + b.bounds.size.y)) || ((a.bounds.position.y + a.bounds.size.y) <= b.bounds.position.y));
+        }
+
+        public void RemoveDoorsRepeats()
+        {
+            for (int i = 0; i < doors.Count - 1; i++)
+            {
+                for (int j = i + 1; j < doors.Count; j++)
+                {
+                    if (doors[i].location == doors[j].location && doors[i].side == doors[j].side)
+                    {
+                        doors.RemoveAt(j);
+                    }
+                }
+            }
         }
     }
 
@@ -102,6 +132,8 @@ public class Generator2D : MonoBehaviour
     [SerializeField]
     GameObject cubePrefab;
     [SerializeField]
+    GameObject roomPrefab;
+    [SerializeField]
     Material redMaterial;
     [SerializeField]
     Material blueMaterial;
@@ -115,6 +147,7 @@ public class Generator2D : MonoBehaviour
     Random random;
     Grid2D<CellType> grid;
     List<Room> rooms;
+    List<Vector2Int> hallways;
     Delaunay2D delaunay;
     HashSet<Prim.Edge> selectedEdges;
 
@@ -129,13 +162,14 @@ public class Generator2D : MonoBehaviour
         random = new Random(); //If empty - all random, if number - seed
         grid = new Grid2D<CellType>(maxSize, Vector2Int.zero);
         rooms = new List<Room>();
+        hallways = new List<Vector2Int>();
 
         GenerateRooms();
         PlaceRooms();
         Triangulate();
         CreateHallways();
         PathfindHallways();
-        //PlaceStructure(); //Размещает стены, пол, потолок, двери
+        //PlaceStructures(); //Размещает стены, пол, потолок, двери
         //PlaceGameObjects(); //Размещает объекты игрового процесса
         //PlaceObstacles(); //Размещает декоративные объекты
         //PlaceLighting(); //Размещает освещение
@@ -233,12 +267,12 @@ public class Generator2D : MonoBehaviour
                     }
                     if (Vector2Int.Distance(rooms[i].bounds.position, entrance) <= range)
                     {
-                        Debug.Log("Entrance and Exit are too close!");
+                        //Debug.Log("Entrance and Exit are too close!");
                         //Debug.Log(Vector2Int.Distance(rooms[i].bounds.position, entrance));
                         //Debug.Log(range);
                         add = false;
                     }
-                    Debug.Log("Range is fine!");
+                    //Debug.Log("Range is fine!");
                     //Debug.Log(Vector2Int.Distance(rooms[i].bounds.position, entrance));
                     //Debug.Log(range);
                 }
@@ -252,7 +286,7 @@ public class Generator2D : MonoBehaviour
                         rooms[i].bounds.size = new Vector2Int(2, 2);
                         break;
                     case RoomType.Battle:
-                        int x = random.Next(roomMinSize.x + 1, roomMaxSize.x);
+                        int x = random.Next(roomMinSize.x + 2, roomMaxSize.x);
                         int y = random.Next(x - 1, x + 1);
                         rooms[i].bounds.size = new Vector2Int(x, y);
                         break;
@@ -301,7 +335,7 @@ public class Generator2D : MonoBehaviour
                 {
                     if (rooms[i].Type == RoomType.Entrance || rooms[i].Type == RoomType.Exit || rooms.Count <= 3)
                     {
-                        Debug.Log("Retrying to place rooms!");
+                        //Debug.Log("Retrying to place rooms!");
                         rooms.Clear();
                         rooms.AddRange(roomsCopy);
                         ResizeField();
@@ -310,10 +344,10 @@ public class Generator2D : MonoBehaviour
                     }                   
                     else
                     {
-                        Debug.Log("Removing at");
-                        Debug.Log(i);
-                        Debug.Log("Type = ");
-                        Debug.Log(rooms[i].Type);
+                        //Debug.Log("Removing at");
+                        //Debug.Log(i);
+                        //Debug.Log("Type = ");
+                        //Debug.Log(rooms[i].Type);
                         rooms.RemoveAt(i);
                         i -= 1;
                     }
@@ -427,6 +461,17 @@ public class Generator2D : MonoBehaviour
                     if (grid[current] == CellType.None)
                     {
                         grid[current] = CellType.Hallway;
+                        hallways.Add(current);
+                    }
+
+                    if (i > 0 && grid[current] == CellType.Room && grid[path[i - 1]] == CellType.Hallway)
+                    {
+                        AddDoorToRoom(current, path[i - 1], true);
+                    }
+
+                    if (i > 0 && grid[current] == CellType.Hallway && grid[path[i - 1]] == CellType.Room)
+                    {
+                        AddDoorToRoom(current, path[i - 1], false);
                     }
 
                     if (i > 0)
@@ -446,7 +491,10 @@ public class Generator2D : MonoBehaviour
                 }
             }
         }
+        RemoveHallwaysRepeats();
+        PlaceDoors();
     }
+
 
     void ResizeField() //Increases the size of the field used, max is (maxSize.x, maxSize.y)
     {
@@ -485,6 +533,59 @@ public class Generator2D : MonoBehaviour
         Debug.Log("Cleared!");
     }*/
 
+    void AddDoorToRoom(Vector2Int current, Vector2Int prev, bool isRoomToHallway)
+    {
+        if (isRoomToHallway) //If the current cell is room and the previous is hallway
+        {
+            bool found = false;
+            foreach (var room in rooms)
+            {
+                foreach (var pos in room.bounds.allPositionsWithin) //Grid positions
+                {
+                    if (current == pos)
+                    {
+                        room.doors.Add(new Door(current, new Vector2Int(prev.x - current.x, prev.y - current.y)));
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+        }
+
+        else
+        {
+            bool found = false;
+            foreach (var room in rooms)
+            {
+                foreach (var pos in room.bounds.allPositionsWithin) //Grid positions
+                {
+                    if (prev == pos)
+                    {
+                        room.doors.Add(new Door(prev, new Vector2Int(current.x - prev.x, current.y - prev.y)));
+                        found = true;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+        }
+    }
+
+    void RemoveHallwaysRepeats()
+    {
+        for (int i = 0; i < hallways.Count - 1; i++)
+        {
+            for (int j = i + 1; j < hallways.Count; j++)
+            {
+                if (hallways[i] == hallways[j])
+                {
+                    hallways.RemoveAt(j);
+                }
+            }
+        }
+    }
+
     void PlaceCube(Vector2Int location, Vector2Int size, Material material)
     {
         GameObject go = Instantiate(cubePrefab, new Vector3(location.x, 0, location.y), Quaternion.identity);
@@ -494,6 +595,8 @@ public class Generator2D : MonoBehaviour
 
     void PlaceRoom(Vector2Int location, Vector2Int size, RoomType type)
     {
+        GameObject go = Instantiate(roomPrefab, new Vector3(location.x + 0.5f * size.x, 0 + 0.5f, location.y + 0.5f * size.y), Quaternion.identity);
+        go.GetComponent<Transform>().localScale = new Vector3(size.x, 1, size.y);
         switch (type)
         {
             case RoomType.Entrance:
@@ -511,11 +614,32 @@ public class Generator2D : MonoBehaviour
             default:
                 PlaceCube(location, size, blueMaterial);
                 break;
-        }        
+        }
     }
 
     void PlaceHallway(Vector2Int location)
     {
         PlaceCube(location, new Vector2Int(1, 1), blueMaterial);
+    }
+
+    void PlaceDoors()
+    {
+        foreach (var room in rooms)
+        {
+            Debug.Log("Room Type ");
+            Debug.Log(room.Type);
+            Debug.Log("Doors count ");
+            Debug.Log(room.doors.Count);
+            room.RemoveDoorsRepeats();
+            Debug.Log("Doors count after");
+            Debug.Log(room.doors.Count);
+            foreach (var door in room.doors)
+            {
+                //PlaceCube(door.location, new Vector2Int(1, 1), greenMaterial);
+                GameObject go = Instantiate(cubePrefab, new Vector3(door.location.x + (door.side.x / 2.0f), 0.5f, door.location.y + (door.side.y / 2.0f)), Quaternion.identity);
+                go.GetComponent<Transform>().localScale = new Vector3(1, 1, 1);
+                go.GetComponent<MeshRenderer>().material = greenMaterial;
+            }
+        }
     }
 }

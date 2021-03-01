@@ -102,13 +102,21 @@ public class Generator2D : MonoBehaviour
 
         public void RemoveDoorsRepeats()
         {
-            for (int i = 0; i < doors.Count - 1; i++)
+            Debug.Log(bounds.position);
+            for (int i = 0; i < doors.Count; i++)
             {
-                for (int j = i + 1; j < doors.Count; j++)
+                Debug.Log("New cycle for i");
+                for (int j = i; j < doors.Count; j++)
                 {
-                    if (doors[i].location == doors[j].location && doors[i].side == doors[j].side)
+                    Debug.Log(i);
+                    Debug.Log(j);
+                    Debug.Log(doors.Count);
+                    if (i != j && doors[i].location == doors[j].location && doors[i].side == doors[j].side)
                     {
+                        Debug.Log("deleted at ");
+                        Debug.Log(j);
                         doors.RemoveAt(j);
+                        j -= 1;
                     }
                 }
             }
@@ -159,7 +167,11 @@ public class Generator2D : MonoBehaviour
 
     void Generate()
     {
-        random = new Random(); //If empty - all random, if number - seed
+        //-35909437
+        //int timeseed = Environment.TickCount;
+        random = new Random(-35909437); //If empty - all random, if number - seed
+        //Debug.Log("Seed is ");
+        //Debug.Log(timeseed);
         grid = new Grid2D<CellType>(maxSize, Vector2Int.zero);
         rooms = new List<Room>();
         hallways = new List<Vector2Int>();
@@ -482,16 +494,16 @@ public class Generator2D : MonoBehaviour
                     }
                 }
 
-                foreach (var pos in path)
+                /*foreach (var pos in path)
                 {
                     if (grid[pos] == CellType.Hallway)
                     {
                         PlaceHallway(pos);
                     }
-                }
+                }*/
             }
-        }
-        RemoveHallwaysRepeats();
+        }       
+        PlaceHallways();
         PlaceDoors();
     }
 
@@ -572,19 +584,24 @@ public class Generator2D : MonoBehaviour
         }
     }
 
-    void RemoveHallwaysRepeats()
+    /*void RemoveHallwaysRepeats()
     {
-        for (int i = 0; i < hallways.Count - 1; i++)
+        for (int i = 0; i < hallways.Count; i++)
         {
-            for (int j = i + 1; j < hallways.Count; j++)
-            {
-                if (hallways[i] == hallways[j])
+            for (int j = i; j < hallways.Count; j++)
+           
+                Debug.Log("iter num ");
+                Debug.Log(j);
+                Debug.Log(hallways[i]);
+                Debug.Log(hallways[j]);
+                if (i != j && hallways[i] == hallways[j])
                 {
                     hallways.RemoveAt(j);
+                    j -= 1;
                 }
             }
         }
-    }
+    }*/
 
     void PlaceCube(Vector2Int location, Vector2Int size, Material material)
     {
@@ -617,9 +634,12 @@ public class Generator2D : MonoBehaviour
         }
     }
 
-    void PlaceHallway(Vector2Int location)
+    void PlaceHallways()
     {
-        PlaceCube(location, new Vector2Int(1, 1), blueMaterial);
+        foreach (var hallway in hallways)
+        {
+            PlaceCube(hallway, new Vector2Int(1, 1), blueMaterial);
+        }
     }
 
     void PlaceDoors()

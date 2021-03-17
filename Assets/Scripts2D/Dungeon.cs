@@ -99,5 +99,19 @@ namespace Dungeon
                 }
             }
         }
+
+        public bool CheckDoors(Vector2Int location, Vector2Int side)
+        {
+            bool found = false;
+            foreach (var door in doors)
+            {
+                if (door.location == location && door.side == side)
+                {
+                    found = true;
+                    break;
+                }                   
+            }
+            return found;
+        }
     }
 }

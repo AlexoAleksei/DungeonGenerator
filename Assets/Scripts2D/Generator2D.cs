@@ -36,7 +36,7 @@ public class Generator2D : MonoBehaviour
     [SerializeField]
     Vector2Int maxSize;
     [SerializeField]
-    Vector2Int size;
+    Vector2Int fieldSize;
     [SerializeField]
     int maxRoomNum; //No less than 3
     [SerializeField]
@@ -164,8 +164,8 @@ public class Generator2D : MonoBehaviour
                 bool add = true;
 
                 rooms[i].bounds.position = new Vector2Int(
-                    random.Next(0, size.x),
-                    random.Next(0, size.y)
+                    random.Next(0, fieldSize.x),
+                    random.Next(0, fieldSize.y)
                 );
                 if (rooms[i].Type == RoomType.Entrance)
                 {
@@ -174,13 +174,13 @@ public class Generator2D : MonoBehaviour
                 else if (rooms[i].Type == RoomType.Exit)
                 {
                     int range;
-                    if (size.x >= size.y)
+                    if (fieldSize.x >= fieldSize.y)
                     {
-                        range = size.y / 2;
+                        range = fieldSize.y / 2;
                     }
                     else
                     {
-                        range = size.x / 2;
+                        range = fieldSize.x / 2;
                     }
                     if (Vector2Int.Distance(rooms[i].bounds.position, entrance) <= range)
                     {
@@ -236,8 +236,8 @@ public class Generator2D : MonoBehaviour
                     }
                 }
 
-                if (rooms[i].bounds.xMin < 0 || rooms[i].bounds.xMax >= size.x
-                    || rooms[i].bounds.yMin < 0 || rooms[i].bounds.yMax >= size.y)
+                if (rooms[i].bounds.xMin < 0 || rooms[i].bounds.xMax >= fieldSize.x
+                    || rooms[i].bounds.yMin < 0 || rooms[i].bounds.yMax >= fieldSize.y)
                 {
                     //Debug.Log("OverField!");
                     add = false;
@@ -340,7 +340,7 @@ public class Generator2D : MonoBehaviour
 
     void PathfindHallways()
     {
-        DungeonPathfinder2D aStar = new DungeonPathfinder2D(size);
+        DungeonPathfinder2D aStar = new DungeonPathfinder2D(fieldSize);
 
         foreach (var edge in selectedEdges)
         {
@@ -418,26 +418,26 @@ public class Generator2D : MonoBehaviour
 
     void PlaceStructures()
     {
-        structurePlacer.PlaceStructures(rooms, roomsObj, hallways);
+        structurePlacer.PlaceStructures(grid, fieldSize, rooms, roomsObj, hallways);
     }
 
     void ResizeField() //Increases the size of the field used, max is (maxSize.x, maxSize.y)
     {
-        if (size.x >= maxSize.x || size.y >= maxSize.y)
+        if (fieldSize.x >= maxSize.x || fieldSize.y >= maxSize.y)
         {
             Debug.Log("The max field size is exceeded!");
         }
 
-        size.x += (int)(size.x * 0.1f) + 1;
-        size.y += (int)(size.y * 0.1f) + 1;
+        fieldSize.x += (int)(fieldSize.x * 0.1f) + 1;
+        fieldSize.y += (int)(fieldSize.y * 0.1f) + 1;
 
-        if (size.x >= maxSize.x)
+        if (fieldSize.x >= maxSize.x)
         {
-            size.x = maxSize.x;
+            fieldSize.x = maxSize.x;
         }
-        if (size.y >= maxSize.y)
+        if (fieldSize.y >= maxSize.y)
         {
-            size.y = maxSize.y;
+            fieldSize.y = maxSize.y;
         }
     }
 

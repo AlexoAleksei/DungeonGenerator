@@ -48,6 +48,8 @@ public class Generator2D : MonoBehaviour
     [SerializeField]
     Vector2Int roomMaxSize; //No less than (1, 1)
     [SerializeField]
+    GameObject hallwayPrefab;
+    [SerializeField]
     List<GameObject> roomsPrefabs;
 
 
@@ -57,8 +59,7 @@ public class Generator2D : MonoBehaviour
     HashSet<Prim.Edge> selectedEdges;
     StructurePlacer structurePlacer;
     List<Room> rooms;
-    List<GameObject> roomsObj;
-    List<Vector2Int> hallways;
+    List<Hallway> hallways;
 
 
     void Start()
@@ -75,8 +76,7 @@ public class Generator2D : MonoBehaviour
         //Debug.Log(timeseed);
         grid = new Grid2D<CellType>(maxSize, Vector2Int.zero);
         rooms = new List<Room>();
-        hallways = new List<Vector2Int>();
-        roomsObj = new List<GameObject>();
+        hallways = new List<Hallway>();
         structurePlacer = gameObject.GetComponent<StructurePlacer>();
 
         GenerateRooms(); //Создает список комнат типа Room 
@@ -85,6 +85,7 @@ public class Generator2D : MonoBehaviour
         Triangulate();
         CreateHallways();
         PathfindHallways();
+        CreateHallwaysObjects();
         PlaceStructures(); //Размещает стены, пол, потолок, двери
         //PlaceGameObjects(); //Размещает объекты игрового процесса
         //PlaceObstacles(); //Размещает декоративные объекты
@@ -294,11 +295,12 @@ public class Generator2D : MonoBehaviour
     {
         foreach (var room in rooms)
         { //Дописать спаун префаба нужного типа комнат
-            GameObject go = Instantiate(roomsPrefabs.Find(x => x.name == "room"),
-                                        new Vector3(room.bounds.position.x + 0.5f * room.bounds.size.x, 0.5f, room.bounds.position.y + 0.5f * room.bounds.size.y),
-                                        Quaternion.identity);
-            go.GetComponent<Transform>().localScale = new Vector3(room.bounds.size.x, 1, room.bounds.size.y);
-            roomsObj.Add(go);
+            GameObject go = Instantiate(roomsPrefabs.Find(x => x.name == "room"), 
+                                        new Vector3(room.bounds.position.x + 0.5f * room.bounds.size.x, 0.5f, 
+                                        room.bounds.position.y + 0.5f * room.bounds.size.y), Quaternion.identity);
+            room.roomObj = go;
+            //go.GetComponent<Transform>().localScale = new Vector3(1, 1, 1);
+            go.GetComponent<BoxCollider>().size = new Vector3(room.bounds.size.x, 1, room.bounds.size.y) ;
         }
     }
 
@@ -384,7 +386,8 @@ public class Generator2D : MonoBehaviour
                     if (grid[current] == CellType.None)
                     {
                         grid[current] = CellType.Hallway;
-                        hallways.Add(current);
+                        Hallway newHallway = new Hallway(current, new Vector2Int(1, 1));
+                        hallways.Add(newHallway);
                     }
 
                     if (i > 0 && grid[current] == CellType.Room && grid[path[i - 1]] == CellType.Hallway)
@@ -416,9 +419,21 @@ public class Generator2D : MonoBehaviour
         }       
     }
 
+    void CreateHallwaysObjects()
+    {
+        foreach (var hallway in hallways)
+        { //Дописать спаун префаба нужного типа комнат
+            GameObject go = Instantiate(hallwayPrefab,
+                                        new Vector3(hallway.bounds.position.x + 0.5f * hallway.bounds.size.x, 0.5f,
+                                        hallway.bounds.position.y + 0.5f * hallway.bounds.size.y), Quaternion.identity);
+            hallway.hallwayObj = go;
+            go.GetComponent<Transform>().localScale = new Vector3(1, 1, 1);
+        }
+    }
+
     void PlaceStructures()
     {
-        structurePlacer.PlaceStructures(grid, fieldSize, rooms, roomsObj, hallways);
+        structurePlacer.PlaceStructures(grid, fieldSize, rooms, hallways);
     }
 
     void ResizeField() //Increases the size of the field used, max is (maxSize.x, maxSize.y)

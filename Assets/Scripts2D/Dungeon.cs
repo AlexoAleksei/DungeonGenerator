@@ -62,13 +62,13 @@ namespace Dungeon
         public RectInt bounds;
         public RoomType Type;
         public List<Door> doors;
+        public GameObject roomObj;
 
         public Room() { }
 
         public Room(Vector2Int location, Vector2Int size)
         {
             bounds = new RectInt(location, size);
-            Type = RoomType.Empty;
             doors = new List<Door>();
         }
 
@@ -112,6 +112,19 @@ namespace Dungeon
                 }                   
             }
             return found;
+        }
+    }
+
+    public class Hallway
+    {
+        public RectInt bounds;
+        public GameObject hallwayObj;
+
+        public Hallway() { }
+
+        public Hallway(Vector2Int location, Vector2Int size)
+        {
+            bounds = new RectInt(location, size);
         }
     }
 }

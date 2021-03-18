@@ -25,19 +25,17 @@ public class StructurePlacer : MonoBehaviour
     Material violetMaterial;
 
 
-    public void PlaceStructures(Grid2D<CellType> grid, Vector2Int fieldSize, List<Room> rooms, List<GameObject> roomObj, 
-                                List<Vector2Int> hallways)
+    public void PlaceStructures(Grid2D<CellType> grid, Vector2Int fieldSize, List<Room> rooms, List<Hallway> hallways)
     {
         v2lurd = new V2LURD();
         v3lurd = new V3LURD();
 
         PlaceDoors(rooms);
         PlaceRooms(grid, fieldSize, rooms);
-        PlaceHallways(hallways);
+        PlaceHallways(grid, fieldSize, hallways);
     }
 
-    void PlaceDoors(List<Room> rooms) // Дописать метод который будет принимать префаб, позицию и т.д. и делать Instantiate
-                                      // Чтобы код не повтарялся для спауна разных дверей и стен по краям.
+    void PlaceDoors(List<Room> rooms) 
     {
         foreach (var room in rooms)
         {
@@ -54,7 +52,7 @@ public class StructurePlacer : MonoBehaviour
                                                 door.location.y), Quaternion.identity);
                 go.GetComponent<Transform>().localScale = new Vector3(1, 1, 1);
                 go.GetComponent<MeshRenderer>().material = greenMaterial;*/
-                if (door.side == Vector2Int.left)
+                /*if (door.side == Vector2Int.left)
                 {
                     //PlaceCube(door.location, new Vector2Int(1, 1), greenMaterial);
                     GameObject go = Instantiate(structures[3], new Vector3(door.location.x, 0.0f,
@@ -82,7 +80,8 @@ public class StructurePlacer : MonoBehaviour
                                                 door.location.y), Quaternion.Euler(v3lurd.directs[3]));
                     go.GetComponent<Transform>().localScale = new Vector3(1, 1, 1);
                     go.GetComponent<MeshRenderer>().material = greenMaterial;
-                }
+                }*/
+                PlaceBorders(structures[3], door.location, door.side, room.roomObj); //Wall with Door
             }
         }
     }
@@ -93,27 +92,27 @@ public class StructurePlacer : MonoBehaviour
         {
             foreach (var pos in room.bounds.allPositionsWithin) //Grid positions
             {
-                PlaceFloor(pos);
-                //PlaceCeiling(pos);
+                PlaceFloor(pos, room.roomObj);
+                //PlaceCeiling(pos, room.roomObj);
                 foreach (var side in v2lurd.sides)
                 {
                     if ((pos + side).x < 0 || (pos + side).y < 0 ||
                         (pos + side).x > fieldSize.x || (pos + side).y > fieldSize.y)
                     {
-                        PlaceWall(pos, side);
+                        PlaceBorders(structures[2], pos, side, room.roomObj); //Wall
                         continue;
                     }
                     switch (grid[pos + side])
                     {
                         case CellType.None:
-                            PlaceWall(pos, side);
+                            PlaceBorders(structures[2], pos, side, room.roomObj); //Wall
                             break;
                         case CellType.Room:
                             break;
                         case CellType.Hallway:
                             if (!room.CheckDoors(pos, side))
                             {
-                                PlaceWall(pos, side);
+                                PlaceBorders(structures[2], pos, side, room.roomObj); //Wall
                             }
                             break;
                     }
@@ -140,29 +139,52 @@ public class StructurePlacer : MonoBehaviour
         }
     }
 
-    void PlaceHallways(List<Vector2Int> hallways)
+    void PlaceHallways(Grid2D<CellType> grid, Vector2Int fieldSize, List<Hallway> hallways)
     {
         foreach (var hallway in hallways)
         {
-            PlaceCube(hallway, new Vector2Int(1, 1), blueMaterial);
+            //PlaceCube(hallway, new Vector2Int(1, 1), blueMaterial);
+            PlaceFloor(hallway.bounds.position, hallway.hallwayObj);
+            //PlaceCeiling(hallway.bounds.position, hallway.hallwayObj);
+            foreach (var side in v2lurd.sides)
+            {
+                if ((hallway.bounds.position + side).x < 0 || (hallway.bounds.position + side).y < 0 ||
+                    (hallway.bounds.position + side).x > fieldSize.x || (hallway.bounds.position + side).y > fieldSize.y)
+                {
+                    PlaceBorders(structures[4], hallway.bounds.position, side, hallway.hallwayObj);
+                    continue;
+                }
+                switch (grid[hallway.bounds.position + side])
+                {
+                    case CellType.None:
+                        PlaceBorders(structures[4], hallway.bounds.position, side, hallway.hallwayObj); //Hallway wall
+                        break;
+                    case CellType.Room:
+                        break;
+                    case CellType.Hallway:
+                        break;
+                }
+            }
         }
     }
 
-    void PlaceFloor(Vector2Int location)
+    void PlaceFloor(Vector2Int location, GameObject parent)
     {
-        GameObject go = Instantiate(structures[0], new Vector3(location.x, 0.0f, location.y), Quaternion.identity);
+        GameObject go = Instantiate(structures[0], new Vector3(location.x, 0.0f, location.y), 
+                                    Quaternion.identity, parent.transform);
         go.GetComponent<Transform>().localScale = new Vector3(1, 1, 1);
         //go.GetComponent<MeshRenderer>().material = material;
     }
 
-    void PlaceCeiling(Vector2Int location)
+    void PlaceCeiling(Vector2Int location, GameObject parent)
     {
-        GameObject go = Instantiate(structures[1], new Vector3(location.x, 0.0f, location.y), Quaternion.identity);
+        GameObject go = Instantiate(structures[1], new Vector3(location.x, 0.0f, location.y), 
+                                    Quaternion.identity, parent.transform);
         go.GetComponent<Transform>().localScale = new Vector3(1, 1, 1);
         //go.GetComponent<MeshRenderer>().material = material;
     }
 
-    void PlaceWall(Vector2Int location, Vector2Int side)
+    /*void PlaceWall(Vector2Int location, Vector2Int side)
     {
         if (side == Vector2Int.left)
         {
@@ -190,6 +212,39 @@ public class StructurePlacer : MonoBehaviour
         {
             GameObject go = Instantiate(structures[2], new Vector3(location.x, 0.0f,
                                         location.y), Quaternion.Euler(v3lurd.directs[3]));
+            go.GetComponent<Transform>().localScale = new Vector3(1, 1, 1);
+            //go.GetComponent<MeshRenderer>().material = greenMaterial;
+        }
+    }*/
+
+    void PlaceBorders(GameObject prefab, Vector2Int location, Vector2Int side, GameObject parent)
+    {
+        if (side == Vector2Int.left)
+        {
+            //PlaceCube(door.location, new Vector2Int(1, 1), greenMaterial);
+            GameObject go = Instantiate(prefab, new Vector3(location.x, 0.0f, location.y + 1.0f), 
+                                        Quaternion.Euler(v3lurd.directs[0]), parent.transform);
+            go.GetComponent<Transform>().localScale = new Vector3(1, 1, 1);
+            //go.GetComponent<MeshRenderer>().material = greenMaterial;
+        }
+        else if (side == Vector2Int.up)
+        {
+            GameObject go = Instantiate(prefab, new Vector3(location.x + 1.0f, 0.0f, location.y + 1.0f), 
+                                        Quaternion.Euler(v3lurd.directs[1]), parent.transform);
+            go.GetComponent<Transform>().localScale = new Vector3(1, 1, 1);
+            //go.GetComponent<MeshRenderer>().material = greenMaterial;
+        }
+        else if (side == Vector2Int.right)
+        {
+            GameObject go = Instantiate(prefab, new Vector3(location.x + 1.0f, 0.0f, location.y), 
+                                        Quaternion.Euler(v3lurd.directs[2]), parent.transform);
+            go.GetComponent<Transform>().localScale = new Vector3(1, 1, 1);
+            //go.GetComponent<MeshRenderer>().material = greenMaterial;
+        }
+        else if (side == Vector2Int.down)
+        {
+            GameObject go = Instantiate(prefab, new Vector3(location.x, 0.0f, location.y), 
+                                        Quaternion.Euler(v3lurd.directs[3]), parent.transform);
             go.GetComponent<Transform>().localScale = new Vector3(1, 1, 1);
             //go.GetComponent<MeshRenderer>().material = greenMaterial;
         }

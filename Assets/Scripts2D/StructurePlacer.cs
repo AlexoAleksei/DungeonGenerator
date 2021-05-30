@@ -25,14 +25,14 @@ public class StructurePlacer : MonoBehaviour
     Material violetMaterial;
 
 
-    public void PlaceStructures(Grid2D<CellType> grid, Vector2Int fieldSize, List<Room> rooms, List<Hallway> hallways)
+    public void PlaceStructures(Grid2D<CellType> grid, Vector2Int fieldSize, List<Room> rooms, List<HallwaySection> hallwaySections)
     {
         v2lurd = new V2LURD();
         v3lurd = new V3LURD();
 
         PlaceDoors(rooms);
         PlaceRooms(grid, fieldSize, rooms);
-        PlaceHallways(grid, fieldSize, hallways);
+        PlaceHallways(grid, fieldSize, hallwaySections);
     }
 
     void PlaceDoors(List<Room> rooms) 
@@ -93,7 +93,7 @@ public class StructurePlacer : MonoBehaviour
             foreach (var pos in room.bounds.allPositionsWithin) //Grid positions
             {
                 PlaceFloor(pos, room.roomObj);
-                //PlaceCeiling(pos, room.roomObj);
+                PlaceCeiling(pos, room.roomObj);
                 foreach (var side in v2lurd.sides)
                 {
                     if ((pos + side).x < 0 || (pos + side).y < 0 ||
@@ -139,30 +139,33 @@ public class StructurePlacer : MonoBehaviour
         }
     }
 
-    void PlaceHallways(Grid2D<CellType> grid, Vector2Int fieldSize, List<Hallway> hallways)
+    void PlaceHallways(Grid2D<CellType> grid, Vector2Int fieldSize, List<HallwaySection> hallwaySections)
     {
-        foreach (var hallway in hallways)
+        foreach (var hallwaySection in hallwaySections)
         {
-            //PlaceCube(hallway, new Vector2Int(1, 1), blueMaterial);
-            PlaceFloor(hallway.bounds.position, hallway.hallwayObj);
-            //PlaceCeiling(hallway.bounds.position, hallway.hallwayObj);
-            foreach (var side in v2lurd.sides)
+            foreach (var hallway in hallwaySection.hallwayList)
             {
-                if ((hallway.bounds.position + side).x < 0 || (hallway.bounds.position + side).y < 0 ||
-                    (hallway.bounds.position + side).x > fieldSize.x || (hallway.bounds.position + side).y > fieldSize.y)
+                //PlaceCube(hallway, new Vector2Int(1, 1), blueMaterial);
+                PlaceFloor(hallway.bounds.position, hallway.hallwayObj);
+                PlaceCeiling(hallway.bounds.position, hallway.hallwayObj);
+                foreach (var side in v2lurd.sides)
                 {
-                    PlaceBorders(structures[4], hallway.bounds.position, side, hallway.hallwayObj);
-                    continue;
-                }
-                switch (grid[hallway.bounds.position + side])
-                {
-                    case CellType.None:
-                        PlaceBorders(structures[4], hallway.bounds.position, side, hallway.hallwayObj); //Hallway wall
-                        break;
-                    case CellType.Room:
-                        break;
-                    case CellType.Hallway:
-                        break;
+                    if ((hallway.bounds.position + side).x < 0 || (hallway.bounds.position + side).y < 0 ||
+                        (hallway.bounds.position + side).x >= fieldSize.x || (hallway.bounds.position + side).y >= fieldSize.y)
+                    {
+                        PlaceBorders(structures[4], hallway.bounds.position, side, hallway.hallwayObj);  //Hallway wall
+                        continue;
+                    }
+                    switch (grid[hallway.bounds.position + side])
+                    {
+                        case CellType.None:
+                            PlaceBorders(structures[4], hallway.bounds.position, side, hallway.hallwayObj); //Hallway wall
+                            break;
+                        case CellType.Room:
+                            break;
+                        case CellType.Hallway:
+                            break;
+                    }
                 }
             }
         }
@@ -170,7 +173,7 @@ public class StructurePlacer : MonoBehaviour
 
     void PlaceFloor(Vector2Int location, GameObject parent)
     {
-        GameObject go = Instantiate(structures[0], new Vector3(location.x, 0.0f, location.y), 
+        GameObject go = Instantiate(structures[0], new Vector3(location.x, 0.0f, location.y), //Floor
                                     Quaternion.identity, parent.transform);
         go.GetComponent<Transform>().localScale = new Vector3(1, 1, 1);
         //go.GetComponent<MeshRenderer>().material = material;
@@ -178,7 +181,7 @@ public class StructurePlacer : MonoBehaviour
 
     void PlaceCeiling(Vector2Int location, GameObject parent)
     {
-        GameObject go = Instantiate(structures[1], new Vector3(location.x, 0.0f, location.y), 
+        GameObject go = Instantiate(structures[1], new Vector3(location.x, 0.0f, location.y), //Ceiling
                                     Quaternion.identity, parent.transform);
         go.GetComponent<Transform>().localScale = new Vector3(1, 1, 1);
         //go.GetComponent<MeshRenderer>().material = material;
